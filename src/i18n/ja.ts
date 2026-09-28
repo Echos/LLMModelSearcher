@@ -267,6 +267,21 @@ export const ja = {
   "search.capsHint": "選んだ特性をすべて持つモデルに絞り込みます",
   "search.llmOnly": "LLM以外 (画像生成など) を除く",
   "detail.capabilities": "特性",
+
+  "mcp.title": "MCPサーバー",
+  "mcp.hint": "Claude Code などのMCPクライアントから、モデル検索・適合判定・推奨・ライブラリ参照を利用できます。アプリ起動中のみ、このPC (127.0.0.1) からの接続を受け付けます。",
+  "mcp.enable": "MCPサーバーを有効にする",
+  "mcp.port": "ポート",
+  "mcp.status": "状態",
+  "mcp.running": "稼働中",
+  "mcp.stopped": "停止中",
+  "mcp.allowDownload": "MCPクライアントからのダウンロード開始を許可する",
+  "mcp.toolsNote": "提供ツール: get_hardware / search_models / get_model / recommend_models / list_trending / get_readme / list_library / list_downloads / list_favorites / download_model (許可時)。削除や設定変更はできません。設定の変更は「保存」で反映されます。",
+  "mcp.jsonConfig": "HTTP対応クライアントの設定 (JSON)",
+  "mcp.stdioBridge": "stdioのみ対応のクライアント (Claude Desktop など) の設定",
+  "mcp.copy": "コピー",
+  "mcp.copied": "コピーしました",
+  "mcp.downloadStarted": "MCPからダウンロードを開始しました: {repo}",
 };
 
 export type Dict = Record<keyof typeof ja, string>;

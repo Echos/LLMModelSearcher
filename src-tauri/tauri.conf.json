@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "LLM Model Searcher",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "identifier": "com.echos.llmmodelsearcher",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -26,6 +26,15 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Echos",
+    "copyright": "Copyright (c) 2026 Echos. MIT License.",
+    "category": "DeveloperTool",
+    "shortDescription": "Search, recommend and manage local LLM models",
+    "licenseFile": "../LICENSE",
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../THIRD_PARTY_LICENSES.md": "THIRD_PARTY_LICENSES.md"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

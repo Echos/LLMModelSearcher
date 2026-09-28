@@ -4,6 +4,7 @@ import { useApp, type Page } from "./AppContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ModelDetail } from "./components/ModelDetail";
 import { formatBytes } from "./lib/format";
+import { McpBridge } from "./mcp/McpBridge";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { DownloadsPage } from "./pages/DownloadsPage";
 import { FavoritesPage } from "./pages/FavoritesPage";
@@ -80,6 +81,7 @@ export function App() {
           <ModelDetail key={detailId} repoId={detailId} />
         </ErrorBoundary>
       )}
+      <McpBridge />
       <div className="toasts">
         {toasts.map((x) => (
           <div key={x.id} className={`toast ${x.kind}`}>

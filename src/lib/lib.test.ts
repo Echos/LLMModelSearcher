@@ -19,6 +19,9 @@ const settings: Settings = {
   vramOverrideGb: null,
   gpuBandwidthOverrideGbps: null,
   ramBandwidthOverrideGbps: null,
+  mcpEnabled: false,
+  mcpPort: 7865,
+  mcpAllowDownload: true,
 };
 
 const hw: HardwareInfo = {

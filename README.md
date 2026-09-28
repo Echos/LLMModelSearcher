@@ -33,6 +33,60 @@ Tauri v2 (Rust) + React + TypeScript 製で、Windows / macOS / Linux に対応�
 
 「LLM以外を除く」(既定で有効) は画像生成・音声合成などの pipeline_tag を持つモデルを一覧から除外します。
 
+## インストール
+
+[Releases](https://github.com/Echos/LLMModelSearcher/releases) から OS に合ったファイルをダウンロードします。
+
+| OS | ファイル |
+|---|---|
+| Windows | `*_x64-setup.exe` (NSIS) または `*_x64_en-US.msi` |
+| macOS (Apple Silicon) | `*_aarch64.dmg` |
+| macOS (Intel) | `*_x64.dmg` |
+| Linux | `*_amd64.AppImage` / `*_amd64.deb` / `*.x86_64.rpm` |
+
+- 配布物はコード署名していません。Windows では SmartScreen の警告が出る場合があります (「詳細情報」→「実行」)。
+- macOS では初回起動時にブロックされるため、アプリを右クリック →「開く」で起動するか、`xattr -dr com.apple.quarantine "/Applications/LLM Model Searcher.app"` を実行してください。
+
+## MCPサーバー
+
+Claude Code などの MCP クライアントから、このアプリの機能をツールとして呼び出せます。設定画面の「MCPサーバー」で有効にすると、アプリ起動中のみ `http://127.0.0.1:7865/mcp` (Streamable HTTP) で待ち受けます。
+
+```bash
+claude mcp add --transport http llm-model-searcher http://127.0.0.1:7865/mcp
+```
+
+stdio のみ対応のクライアント (Claude Desktop など) は `mcp-remote` 経由で接続します。
+
+```json
+{ "mcpServers": { "llm-model-searcher": { "command": "npx", "args": ["-y", "mcp-remote", "http://127.0.0.1:7865/mcp"] } } }
+```
+
+| ツール | 内容 |
+|---|---|
+| `get_hardware` | 検出したハードウェアと推定に使う値 |
+| `search_models` | 検索 (形式・タスク・特性・サイズ・このPCで動くもののみ) と適合度・推定速度 |
+| `get_model` | 量子化ごとのサイズ・必要メモリ・適合度・推定 tok/s・おすすめ・保存済みか |
+| `recommend_models` | 用途別のおすすめ |
+| `list_trending` | トレンド・新着・最近更新 |
+| `get_readme` | モデルカード |
+| `list_library` / `list_downloads` / `list_favorites` | ローカルの保存済みモデル・追跡結果、ダウンロード状況、お気に入り |
+| `download_model` | ダウンロードの開始 (量子化を省略するとこのPC向けのおすすめ)。設定で無効化できる |
+
+ファイルの削除や設定の変更は MCP からはできません。接続は 127.0.0.1 のみ受け付け、ブラウザからの他オリジンのリクエスト (DNSリバインディング) は Origin ヘッダで拒否します。
+
+```mermaid
+sequenceDiagram
+  participant C as MCPクライアント
+  participant R as Rust (axum)
+  participant W as WebView (TS)
+  C->>R: POST /mcp tools/call
+  R->>R: Originチェック・JSON-RPC処理
+  R->>W: event mcp-request
+  W->>W: 推定ロジック (GUIと共通) で処理
+  W->>R: invoke mcp_respond
+  R->>C: JSON-RPC result
+```
+
 ## 保存先の構成
 
 設定で指定したディレクトリの下に、LM Studio と同じ構成で保存します。
@@ -127,3 +181,15 @@ Hugging Face に実際に接続する結合テスト (GGUFヘッダ取得・追�
 ```bash
 cd src-tauri && cargo test -- --ignored
 ```
+
+### リリース
+
+1. `package.json` / `src-tauri/Cargo.toml` / `src-tauri/tauri.conf.json` のバージョンを更新する
+2. 依存を変更した場合は第三者ライセンス告知を再生成する (`npm run licenses`)
+3. `v<バージョン>` タグを push すると、GitHub Actions が Windows / macOS (arm64・x64) / Linux のパッケージをビルドし、下書きリリースに添付する
+
+## ライセンス
+
+[MIT](LICENSE)
+
+配布物には依存ライブラリのライセンス告知 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) を同梱しています。「LM Studio」「Hugging Face」は各社の商標であり、本プロジェクトはそれらと提携していません。

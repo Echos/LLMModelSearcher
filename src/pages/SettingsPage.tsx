@@ -2,7 +2,108 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { useApp } from "../AppContext";
 import { api, errorMessage } from "../lib/api";
-import type { Settings } from "../lib/types";
+import type { McpStatus, Settings } from "../lib/types";
+
+function McpSection({
+  draft,
+  set,
+}: {
+  draft: Settings;
+  set: <K extends keyof Settings>(k: K, v: Settings[K]) => void;
+}) {
+  const { t, notify } = useApp();
+  const [status, setStatus] = useState<McpStatus | null>(null);
+
+  useEffect(() => {
+    const load = () => api.mcpStatus().then(setStatus).catch(() => undefined);
+    load();
+    const timer = setInterval(load, 2000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const url = status?.url ?? `http://127.0.0.1:${draft.mcpPort}/mcp`;
+  const snippets = [
+    { label: "Claude Code", text: `claude mcp add --transport http llm-model-searcher ${url}` },
+    {
+      label: t("mcp.jsonConfig"),
+      text: JSON.stringify({ mcpServers: { "llm-model-searcher": { type: "http", url } } }, null, 2),
+    },
+    {
+      label: t("mcp.stdioBridge"),
+      text: JSON.stringify(
+        { mcpServers: { "llm-model-searcher": { command: "npx", args: ["-y", "mcp-remote", url] } } },
+        null,
+        2,
+      ),
+    },
+  ];
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      notify(t("mcp.copied"));
+    } catch (e) {
+      notify(errorMessage(e), "error");
+    }
+  };
+
+  return (
+    <>
+      <h2>{t("mcp.title")}</h2>
+      <p className="muted small">{t("mcp.hint")}</p>
+      <label className="check">
+        <input type="checkbox" checked={draft.mcpEnabled} onChange={(e) => set("mcpEnabled", e.target.checked)} />
+        {t("mcp.enable")}
+      </label>
+      <div className="grid2">
+        <section className="field">
+          <label>{t("mcp.port")}</label>
+          <input
+            type="number"
+            min={1024}
+            max={65535}
+            value={draft.mcpPort}
+            onChange={(e) => set("mcpPort", Number(e.target.value))}
+          />
+        </section>
+        <section className="field">
+          <label>{t("mcp.status")}</label>
+          <div>
+            {status?.error ? (
+              <span className="badge st-failed">{status.error}</span>
+            ) : status?.running ? (
+              <span className="badge local">
+                {t("mcp.running")} <code>{status.url}</code>
+              </span>
+            ) : (
+              <span className="badge">{t("mcp.stopped")}</span>
+            )}
+          </div>
+        </section>
+      </div>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={draft.mcpAllowDownload}
+          onChange={(e) => set("mcpAllowDownload", e.target.checked)}
+        />
+        {t("mcp.allowDownload")}
+      </label>
+      <p className="muted small">{t("mcp.toolsNote")}</p>
+      {snippets.map((s) => (
+        <div key={s.label} className="snippet">
+          <div className="snippet-head">
+            <span className="small strong">{s.label}</span>
+            <button className="btn small" onClick={() => copy(s.text)}>
+              {t("mcp.copy")}
+            </button>
+          </div>
+          <pre>{s.text}</pre>
+        </div>
+      ))}
+    </>
+  );
+}
 
 function numOrNull(v: string): number | null {
   const n = Number(v);
@@ -33,6 +134,7 @@ export function SettingsPage() {
         updateCheckIntervalHours: Math.max(Math.round(draft.updateCheckIntervalHours) || 0, 0),
         defaultContextLength: Math.max(Math.round(draft.defaultContextLength) || 8192, 512),
         minTokensPerSec: Math.max(draft.minTokensPerSec || 1, 0.5),
+        mcpPort: Math.min(Math.max(Math.round(draft.mcpPort) || 7865, 1024), 65535),
       });
       notify(t("set.saved"));
     } catch (e) {
@@ -164,6 +266,8 @@ export function SettingsPage() {
           </section>
         ))}
       </div>
+
+      <McpSection draft={draft} set={set} />
 
       <div className="center-left">
         <button className="btn primary" onClick={save}>
