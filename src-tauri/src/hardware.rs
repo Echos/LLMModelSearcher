@@ -144,7 +144,7 @@ fn parse_nvidia_smi(out: &str) -> Vec<GpuInfo> {
         .collect()
 }
 
-#[cfg(any(windows, target_os = "macos", test))]
+#[cfg(any(windows, target_os = "macos"))]
 fn vendor_of(name: &str) -> String {
     let n = name.to_lowercase();
     if n.contains("nvidia") || n.contains("geforce") || n.contains("quadro") {

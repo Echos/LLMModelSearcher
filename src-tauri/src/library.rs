@@ -252,7 +252,7 @@ pub fn scan(models_dir: &Path, index: &LibraryIndex) -> Vec<LocalRepo> {
             });
         }
     }
-    out.sort_by(|a, b| a.repo_id.to_lowercase().cmp(&b.repo_id.to_lowercase()));
+    out.sort_by_key(|r| r.repo_id.to_lowercase());
     out
 }
 
