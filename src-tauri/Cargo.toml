@@ -1,7 +1,9 @@
 [package]
 name = "llm-model-searcher"
-version = "0.1.0"
+version = "0.0.1"
 description = "Hugging Face LLM model search, recommendation and library manager"
+license = "MIT"
+repository = "https://github.com/Echos/LLMModelSearcher"
 edition = "2021"
 
 [lib]
@@ -28,6 +30,7 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
 urlencoding = "2"
+axum = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"

@@ -877,3 +877,22 @@ ul.list li {
   border-color: var(--cap-color);
   color: var(--text);
 }
+
+.snippet {
+  margin: 8px 0;
+}
+.snippet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.snippet pre {
+  margin: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  font-size: 12.5px;
+}

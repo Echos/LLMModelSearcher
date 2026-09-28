@@ -3,6 +3,7 @@ import type {
   DownloadTask,
   HardwareInfo,
   LocalRepo,
+  McpStatus,
   ModelArch,
   RepoMeta,
   Settings,
@@ -40,6 +41,8 @@ export const api = {
   downloadResume: (id: string) => invoke<void>("download_resume", { id }),
   downloadCancel: (id: string) => invoke<void>("download_cancel", { id }),
   downloadClear: (ids?: string[]) => invoke<void>("download_clear", { ids: ids ?? null }),
+
+  mcpStatus: () => invoke<McpStatus>("mcp_status"),
 
   libraryScan: () => invoke<LocalRepo[]>("library_scan"),
   libraryDelete: (repoId: string, file: string | null) =>

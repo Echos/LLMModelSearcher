@@ -144,6 +144,7 @@ fn parse_nvidia_smi(out: &str) -> Vec<GpuInfo> {
         .collect()
 }
 
+#[cfg(any(windows, target_os = "macos", test))]
 fn vendor_of(name: &str) -> String {
     let n = name.to_lowercase();
     if n.contains("nvidia") || n.contains("geforce") || n.contains("quadro") {
@@ -162,6 +163,7 @@ fn vendor_of(name: &str) -> String {
 
 /// 名前から内蔵GPUかを推定する。
 /// Strix Haloなど、BIOSで大容量VRAMを割り当てたAPUも内蔵として扱い、VRAM量は別途見る
+#[cfg(any(windows, target_os = "macos", test))]
 fn guess_kind(name: &str, _vram: Option<u64>) -> String {
     let n = name.to_lowercase();
     let integrated_name = n.contains("uhd")
@@ -340,9 +342,8 @@ fn platform_detect(info: &mut HardwareInfo, nvidia: Vec<GpuInfo>) {
             let name = std::fs::read_to_string(dev.join("product_name"))
                 .map(|s| s.trim().to_string())
                 .unwrap_or_else(|_| format!("{vendor} GPU ({fname})"));
-            let kind = if vendor == "Intel" && vram.is_none() {
-                "integrated".to_string()
-            } else if vram.map(|v| v < 2 * 1024 * 1024 * 1024).unwrap_or(true) {
+            // VRAM量が取れない、または2GB未満なら内蔵GPUとみなす
+            let kind = if vram.map(|v| v < 2 * 1024 * 1024 * 1024).unwrap_or(true) {
                 "integrated".to_string()
             } else {
                 "discrete".to_string()

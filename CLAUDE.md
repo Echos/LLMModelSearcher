@@ -30,6 +30,19 @@ cd src-tauri && cargo clippy --all-targets
   - `bandwidth.ts`: GPU帯域の参考値表 (具体的な名前を先に並べる)
 - `src/i18n/`: `ja.ts` がキーの正本。`en.ts` は `Dict` 型で同じキーを強制される
 
+## MCPサーバー
+
+- `src-tauri/src/mcp.rs`: axumで `127.0.0.1:<port>/mcp` を待ち受け (Streamable HTTP, JSON応答のみ)。`initialize`/`ping` はRustで応答し、`tools/list`/`tools/call` は `mcp-request` イベントでWebViewへ転送、`mcp_respond` コマンドで結果を受け取る
+- `src/mcp/tools.ts`: ツール定義と実装。推定ロジックはGUIと共通 (`lib/analyze.ts` など) にし、MCP用に別実装しない
+- 設定変更時は `mcp::reconcile` でサーバーを起動・停止・ポート変更する
+- ダウンロードツールは `mcpAllowDownload` が有効なときだけ `tools/list` に出す。削除・設定変更のツールは提供しない
+
+## ライセンス・リリース
+
+- 依存を追加・更新したら `npm run licenses` で `THIRD_PARTY_LICENSES.md` を再生成してコミットする (配布物に同梱される)
+- GPL系などコピーレフトの依存を追加しない。追加前にライセンスを確認する
+- `v*` タグのpushで `.github/workflows/release.yml` が全OSのパッケージを下書きリリースに添付する
+
 ## 注意事項
 
 - HF API のレスポンスはRust側でパススルーし、TS側 (`hfmodel.ts` の `toSummary`) で正規化する。フィールドを追加したら両方の型を確認する

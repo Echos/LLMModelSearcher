@@ -12,6 +12,15 @@ export interface Settings {
   vramOverrideGb: number | null;
   gpuBandwidthOverrideGbps: number | null;
   ramBandwidthOverrideGbps: number | null;
+  mcpEnabled: boolean;
+  mcpPort: number;
+  mcpAllowDownload: boolean;
+}
+
+export interface McpStatus {
+  running: boolean;
+  url: string | null;
+  error: string | null;
 }
 
 export interface Favorite {

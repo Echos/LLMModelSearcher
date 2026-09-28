@@ -20,6 +20,11 @@ pub struct Settings {
     pub vram_override_gb: Option<f64>,
     pub gpu_bandwidth_override_gbps: Option<f64>,
     pub ram_bandwidth_override_gbps: Option<f64>,
+    /// localhostでMCPサーバー (Streamable HTTP) を公開する
+    pub mcp_enabled: bool,
+    pub mcp_port: u16,
+    /// MCPクライアントからのダウンロード開始を許可する
+    pub mcp_allow_download: bool,
 }
 
 impl Default for Settings {
@@ -36,6 +41,9 @@ impl Default for Settings {
             vram_override_gb: None,
             gpu_bandwidth_override_gbps: None,
             ram_bandwidth_override_gbps: None,
+            mcp_enabled: false,
+            mcp_port: crate::mcp::DEFAULT_PORT,
+            mcp_allow_download: true,
         }
     }
 }

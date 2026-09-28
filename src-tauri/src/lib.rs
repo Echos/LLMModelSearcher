@@ -3,6 +3,7 @@ mod gguf;
 mod hardware;
 mod hf;
 mod library;
+mod mcp;
 mod paths;
 mod secrets;
 mod store;
@@ -30,6 +31,9 @@ pub struct Core {
     pub hf: HfClient,
     pub downloads: download::DownloadManager,
     pub hardware: Mutex<Option<HardwareInfo>>,
+    pub mcp_bridge: mcp::Bridge,
+    pub mcp_server: Mutex<Option<mcp::RunningServer>>,
+    pub mcp_error: Mutex<Option<String>>,
 }
 
 impl Core {
@@ -82,10 +86,32 @@ fn update_settings(core: CoreState, settings: Settings) -> CmdResult<Settings> {
     if let Some(dir) = settings.models_dir.as_deref() {
         std::fs::create_dir_all(dir).map_err(err)?;
     }
+    if settings.mcp_port < 1024 {
+        return Err("MCP port must be 1024 or higher".into());
+    }
     core.user.lock().unwrap().settings = settings.clone();
     core.save_user()?;
     download::pump(&core);
+    let c = core.inner().clone();
+    tauri::async_runtime::spawn(async move { mcp::reconcile(&c).await });
     Ok(settings)
+}
+
+// ---- MCP ----
+
+#[tauri::command]
+fn mcp_status(core: CoreState) -> mcp::McpStatus {
+    mcp::status(&core)
+}
+
+/// フロントエンドで処理したMCPリクエストの結果を返す
+#[tauri::command]
+fn mcp_respond(core: CoreState, id: u64, result: Option<Value>, error: Option<String>) {
+    let r = match error {
+        Some(e) => Err(e),
+        None => Ok(result.unwrap_or(Value::Null)),
+    };
+    core.mcp_bridge.respond(id, r);
 }
 
 #[tauri::command]
@@ -339,7 +365,12 @@ pub fn run() {
                 library: Mutex::new(library),
                 hf: HfClient::new(secrets::load_token())?,
                 hardware: Mutex::new(None),
+                mcp_bridge: mcp::Bridge::default(),
+                mcp_server: Mutex::new(None),
+                mcp_error: Mutex::new(None),
             });
+            let c = core.clone();
+            tauri::async_runtime::spawn(async move { mcp::reconcile(&c).await });
             app.manage(core);
             Ok(())
         })
@@ -368,6 +399,8 @@ pub fn run() {
             library_delete,
             library_track,
             library_check_updates,
+            mcp_status,
+            mcp_respond,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

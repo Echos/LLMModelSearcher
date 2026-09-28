@@ -3,10 +3,17 @@ import { Download, ExternalLink, Lock, Star, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../AppContext";
 import { api, errorMessage } from "../lib/api";
-import { estimateFit, pickBestQuant, type FitResult, type ModelSpec } from "../lib/estimate";
+import {
+  archProbeFile,
+  evaluateGroups,
+  modelSpec,
+  preferredMmproj,
+  repoGroups,
+  type RepoGroups,
+} from "../lib/analyze";
 import { formatBytes, formatCount, formatDate, formatParams, relativeTime } from "../lib/format";
 import { buildListQuery, filesFromInfo, hfUrl, toSummary, type ModelSummary } from "../lib/hfmodel";
-import { groupGgufFiles, safetensorsBundle, type FileGroup } from "../lib/quant";
+import type { FileGroup } from "../lib/quant";
 import type { ModelArch } from "../lib/types";
 import { CAPABILITIES, type Capability } from "../lib/capabilities";
 import { CapabilityIcons, CapabilityList } from "./CapabilityIcons";
@@ -41,21 +48,15 @@ export function ModelDetail({ repoId }: { repoId: string }) {
 
   const summary: ModelSummary | null = useMemo(() => (info ? toSummary(info) : null), [info]);
   const files = useMemo(() => (info ? filesFromInfo(info) : []), [info]);
-  const groups = useMemo(() => {
-    if (!summary) return { model: [] as FileGroup[], mmproj: [] as FileGroup[] };
-    if (summary.format === "gguf") {
-      const all = groupGgufFiles(files);
-      return { model: all.filter((g) => !g.isMmproj), mmproj: all.filter((g) => g.isMmproj) };
-    }
-    const b = safetensorsBundle(files);
-    return { model: b ? [{ ...b, quant: summary.repoQuant, label: summary.repoQuant ?? t("detail.bundle") }] : [], mmproj: [] };
-  }, [summary, files, t]);
+  const groups: RepoGroups = useMemo(
+    () => (summary ? repoGroups(summary, files, t("detail.bundle")) : { model: [], mmproj: [] }),
+    [summary, files, t],
+  );
 
   // KVキャッシュ見積もりのための構造情報 (GGUFヘッダまたは config.json)
   useEffect(() => {
     if (!summary) return;
-    const smallest = [...groups.model].sort((a, b) => a.totalSize - b.totalSize)[0];
-    const file = summary.format === "gguf" ? smallest?.files[0]?.path ?? null : null;
+    const file = archProbeFile(summary, groups);
     if (summary.format === "gguf" && !file) return;
     let cancelled = false;
     api
@@ -65,7 +66,7 @@ export function ModelDetail({ repoId }: { repoId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [repoId, summary, groups.model]);
+  }, [repoId, summary, groups]);
 
   if (error) {
     return (
@@ -164,15 +165,6 @@ function Shell({ repoId, onClose, children }: { repoId: string; onClose: () => v
   );
 }
 
-function activeParams(summary: ModelSummary, arch: ModelArch | null, total: number | null): number | null {
-  if (summary.paramsActive) return summary.paramsActive;
-  if (total && arch?.expertCount && arch.expertUsedCount && arch.expertCount > 1) {
-    // 共有部分を約1割と仮定した概算
-    return total * (0.1 + (0.9 * arch.expertUsedCount) / arch.expertCount);
-  }
-  return null;
-}
-
 function FilesTab({
   repoId,
   info,
@@ -187,7 +179,7 @@ function FilesTab({
   repoId: string;
   info: Record<string, any>;
   summary: ModelSummary;
-  groups: { model: FileGroup[]; mmproj: FileGroup[] };
+  groups: RepoGroups;
   arch: ModelArch | null;
   ctx: number;
   setCtx: (n: number) => void;
@@ -196,45 +188,26 @@ function FilesTab({
 }) {
   const { t, profile, settings, downloads, library, notify } = useApp();
   const [withMmproj, setWithMmproj] = useState(true);
-
-  const paramsTotal = summary.paramsTotal ?? arch?.parameterCount ?? null;
-  const spec: Omit<ModelSpec, "weightsBytes"> = {
-    format: summary.format,
-    paramsTotal,
-    paramsActive: activeParams(summary, arch, paramsTotal),
-    kvBytesPerToken: arch?.kvBytesPerToken ?? null,
-  };
   const minTps = settings.minTokensPerSec;
 
-  const fits = useMemo(() => {
-    const m = new Map<string, FitResult>();
-    if (!profile) return m;
-    for (const g of groups.model) m.set(g.key, estimateFit(profile, { ...spec, weightsBytes: g.totalSize }, ctx, minTps));
-    return m;
-  }, [profile, groups.model, ctx, minTps, spec.kvBytesPerToken, spec.paramsTotal, spec.paramsActive, spec.format]);
-
-  const best = useMemo(() => {
-    if (!profile) return null;
-    return pickBestQuant(
-      profile,
-      groups.model.map((g) => ({ quant: g.quant ?? g.label, weightsBytes: g.totalSize, id: g.key })),
-      spec,
-      ctx,
-      minTps,
-    );
-  }, [profile, groups.model, ctx, minTps, spec.kvBytesPerToken, spec.paramsTotal, spec.paramsActive, spec.format]);
+  const { fits, best } = useMemo(
+    () =>
+      profile
+        ? evaluateGroups(profile, groups.model, modelSpec(summary, arch), ctx, minTps)
+        : { fits: new Map(), best: null },
+    [profile, groups.model, summary, arch, ctx, minTps],
+  );
 
   const localRepo = library.find((r) => r.repoId === repoId);
   const localPaths = new Set(localRepo?.files.map((f) => f.path) ?? []);
   const taskMap = new Map(downloads.filter((d) => d.repoId === repoId).map((d) => [d.path, d]));
 
-  const preferredMmproj =
-    groups.mmproj.find((g) => /F16/i.test(g.label) && !/BF16/i.test(g.label)) ?? groups.mmproj[0] ?? null;
+  const mmproj = preferredMmproj(groups);
 
   const startDownload = async (g: FileGroup, includeMmproj: boolean) => {
     if (!settings.modelsDir) return onNeedDir();
     const fileList = [...g.files];
-    if (includeMmproj && preferredMmproj) fileList.push(...preferredMmproj.files);
+    if (includeMmproj && mmproj) fileList.push(...mmproj.files);
     try {
       await api.downloadEnqueue(
         repoId,
