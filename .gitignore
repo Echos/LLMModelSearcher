@@ -17,3 +17,7 @@ src-tauri/gen/schemas/
 .idea/
 .DS_Store
 Thumbs.db
+
+# モバイル向けアイコン (デスクトップ専用のため不要)
+src-tauri/icons/android/
+src-tauri/icons/ios/
